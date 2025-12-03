@@ -1,42 +1,78 @@
+// app.js
 const express = require("express");
 const multer = require("multer");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
 
 const app = express();
-app.use(express.json());
-app.use(express.static("public")); // serve images from /public
+const PORT = process.env.PORT || 4000;
 
-// Multer setup (store uploaded file in memory temporarily)
+// Path to public folder
+const publicDir = path.join(__dirname, "public");
+
+// Serve static files (images, built React app, etc.)
+app.use(express.static(publicDir));
+
+// Multer: store file in memory buffer
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// GET route: return image based on name
+
+// GET /api/getImage?name=tom
+// Sends back the image file from /public/<name>.jpg
+
 app.get("/api/getImage", (req, res) => {
-  const name = req.query.name;
-  const filePath = path.join(__dirname, "public", `${name}.jpg`);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).send("Image not found");
+  const name = (req.query.name || "").toLowerCase();
+
+  if (!name) {
+    return res.status(400).send("Error: name query parameter required");
   }
+
+  const filePath = path.join(publicDir, `${name}.jpg`);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send("Image not found");
+  }
+
+  // Prevent caching
+  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+
+  return res.sendFile(filePath);
 });
 
-// POST route: upload a new image
+
+// POST /api/upload?name=tom
+// Uploads a new file and saves it as public/<name>.jpg
+
 app.post("/api/upload", upload.single("image"), (req, res) => {
-  const name = req.query.name;
-  if (!req.file) return res.status(400).send("No file uploaded");
-  if (!name) return res.status(400).send("No character name provided");
+  const name = (req.query.name || "").toLowerCase();
 
-  const filePath = path.join(__dirname, "public", `${name}.jpg`);
+  if (!name) {
+    return res.status(400).json({ message: "Error: name query parameter required" });
+  }
 
-  // Save/overwrite the file
+  if (!req.file) {
+    return res.status(400).json({ message: "Error: image file is required" });
+  }
+
+  const filename = `${name}.jpg`;
+  const filePath = path.join(publicDir, filename);
+
+  // Write uploaded data to file (overwrite existing)
   fs.writeFile(filePath, req.file.buffer, (err) => {
-    if (err) return res.status(500).send("Error saving file");
-    res.json({ message: `Image for ${name} uploaded successfully!` });
+    if (err) {
+      return res.status(500).json({ message: "Failed to save file", error: err.message });
+    }
+
+    return res.json({
+      message: `Upload successful. Saved as ${filename}`
+    });
   });
 });
 
+
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
