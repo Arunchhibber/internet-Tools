@@ -1,74 +1,87 @@
-import React, { useState } from "react";
-import axios from "axios";
+import { useState } from "react";
+import "./App.css";
 
-export default function App() {
-  const [queryName, setQueryName] = useState("tom");
-  const [file, setFile] = useState(null);
-  const [status, setStatus] = useState("");
-  const [imageSrc, setImageSrc] = useState(null);
+function App() {
+  const [searchName, setSearchName] = useState("");
+  const [imageURL, setImageURL] = useState(null);
 
-  const fetchImage = (name) => {
-    if (!name) return setImageSrc(null);
-    const ts = Date.now();
-    setImageSrc(`/api/getImage?name=${name}&_=${ts}`);
-  };
+  const [uploadName, setUploadName] = useState("");
+  const [uploadFile, setUploadFile] = useState(null);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setStatus("");
-    fetchImage(queryName.toLowerCase());
-  };
-
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!file) return setStatus("Select a file first");
-    if (!queryName) return setStatus("Enter a name");
-
-    const form = new FormData();
-    form.append("image", file);
-
-    try {
-      const resp = await axios.post(
-        `/api/upload?name=${queryName.toLowerCase()}`,
-        form,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      setStatus(resp.data.message);
-      fetchImage(queryName.toLowerCase());
-    } catch (err) {
-      setStatus("Upload failed");
+  // SEARCH IMAGE
+  const handleSearch = () => {
+    if (!searchName.trim()) {
+      alert("Enter a name");
+      return;
     }
+
+    setImageURL(`/api/getImage?name=${searchName}`);
+  };
+
+  // UPLOAD FILE
+  const handleUpload = async () => {
+    if (!uploadName.trim()) {
+      alert("Enter the character name");
+      return;
+    }
+    if (!uploadFile) {
+      alert("Select an image file");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", uploadFile);
+
+    const res = await fetch(`/api/upload?name=${uploadName}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    alert(data.message);
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Image Manager</h1>
+    <div className="App">
+      <h1>Image Search & Upload</h1>
 
-      <form onSubmit={handleSearch}>
+      {/* SEARCH */}
+      <div className="section">
+        <h2>Search Image</h2>
         <input
-          value={queryName}
-          onChange={(e) => setQueryName(e.target.value)}
+          type="text"
+          placeholder="Enter name (ex: tom)"
+          value={searchName}
+          onChange={(e) => setSearchName(e.target.value)}
         />
-        <button type="submit">Search</button>
-      </form>
+        <button onClick={handleSearch}>Search</button>
 
-      <div style={{ marginTop: 20 }}>
-        {imageSrc ? (
-          <img src={imageSrc} alt="character" width="300" />
-        ) : (
-          <p>No image yet</p>
+        {imageURL && (
+          <div className="image-box">
+            <img src={imageURL} alt="result" />
+          </div>
         )}
       </div>
 
-      <h2>Upload New Image</h2>
-      <input
-        type="file"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-      />
-      <button onClick={handleUpload}>Upload</button>
+      {/* UPLOAD */}
+      <div className="section">
+        <h2>Upload New Image</h2>
+        <input
+          type="text"
+          placeholder="Enter name (ex: tom)"
+          value={uploadName}
+          onChange={(e) => setUploadName(e.target.value)}
+        />
 
-      <p>Status: {status}</p>
+        <input
+          type="file"
+          onChange={(e) => setUploadFile(e.target.files[0])}
+        />
+
+        <button onClick={handleUpload}>Upload</button>
+      </div>
     </div>
   );
 }
+
+export default App;
